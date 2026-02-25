@@ -244,8 +244,60 @@ class MonacoManager {
    * Load Monaco dynamically
    */
   private async loadMonaco(): Promise<typeof Monaco> {
-    // Use direct ES module import instead of @monaco-editor/loader
-    // This avoids CDN loading and lets Vite handle bundling
+    // Configure Monaco worker URLs before importing.
+    // In Vite, workers must be referenced via `new URL(..., import.meta.url)`
+    // so that Vite can resolve and bundle them correctly.
+    // Without this, Monaco fails to create web workers for tokenization
+    // and the editor may hang or never fully initialize.
+    self.MonacoEnvironment = {
+      getWorker(_workerId: string, label: string): Worker {
+        if (label === "json") {
+          return new Worker(
+            new URL(
+              "monaco-editor/esm/vs/language/json/json.worker.js",
+              import.meta.url,
+            ),
+            { type: "module" },
+          );
+        }
+        if (label === "css" || label === "scss" || label === "less") {
+          return new Worker(
+            new URL(
+              "monaco-editor/esm/vs/language/css/css.worker.js",
+              import.meta.url,
+            ),
+            { type: "module" },
+          );
+        }
+        if (label === "html" || label === "handlebars" || label === "razor") {
+          return new Worker(
+            new URL(
+              "monaco-editor/esm/vs/language/html/html.worker.js",
+              import.meta.url,
+            ),
+            { type: "module" },
+          );
+        }
+        if (label === "typescript" || label === "javascript") {
+          return new Worker(
+            new URL(
+              "monaco-editor/esm/vs/language/typescript/ts.worker.js",
+              import.meta.url,
+            ),
+            { type: "module" },
+          );
+        }
+        // Default editor worker (handles tokenization, diff, etc.)
+        return new Worker(
+          new URL(
+            "monaco-editor/esm/vs/editor/editor.worker.js",
+            import.meta.url,
+          ),
+          { type: "module" },
+        );
+      },
+    };
+
     const monaco = await import("monaco-editor");
     return monaco;
   }

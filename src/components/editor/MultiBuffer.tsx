@@ -1,6 +1,5 @@
 import { Show, Suspense, createSignal, createMemo, createEffect, onMount, onCleanup, JSX, lazy, For } from "solid-js";
 import { useEditor, SplitDirection, OpenFile, EditorGroup } from "@/context/EditorContext";
-import { CodeEditor } from "./CodeEditor";
 import { LazyEditor } from "./LazyEditor";
 import { TabBar } from "./TabBar";
 import { ImageViewer, isImageFile, SVGPreview, isSVGFile } from "../viewers";
@@ -8,6 +7,11 @@ import { Icon } from "../ui/Icon";
 import { Card, Text } from "@/components/ui";
 import { safeGetItem, safeSetItem } from "@/utils/safeStorage";
 import "@/styles/animations.css";
+
+// Lazy load CodeEditor - avoids pulling all editor dependencies into the initial chunk
+const CodeEditorLazy = lazy(() =>
+  import("./CodeEditor").then((m) => ({ default: m.CodeEditor })),
+);
 
 // Lazy load DiffEditor for better performance - only loaded when needed
 const DiffEditorLazy = lazy(() => import("./DiffEditor"));
@@ -278,7 +282,9 @@ function FileViewer(props: FileViewerProps) {
               when={isNonSvgImage()}
               fallback={
                 <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-                  <CodeEditor file={props.file} groupId={props.groupId} />
+                  <Suspense fallback={<div style={{ flex: "1", display: "flex", "align-items": "center", "justify-content": "center" }}>Loading editor...</div>}>
+                    <CodeEditorLazy file={props.file} groupId={props.groupId} />
+                  </Suspense>
                 </div>
               }
             >
@@ -466,13 +472,15 @@ export function DiffView(props: DiffViewProps) {
                 >
                   <Text variant="muted" size="sm">{props.leftFile.name} (Original)</Text>
                 </div>
-                <CodeEditor file={props.leftFile} />
+                <Suspense fallback={<div style={{ flex: "1" }}>Loading...</div>}>
+                    <CodeEditorLazy file={props.leftFile} />
+                  </Suspense>
               </div>
             )}
             second={() => (
               <div style={{ flex: "1", display: "flex", "flex-direction": "column", overflow: "hidden" }}>
-                <div 
-                  style={{ 
+                <div
+                  style={{
                     height: "32px",
                     display: "flex",
                     "align-items": "center",
@@ -484,7 +492,9 @@ export function DiffView(props: DiffViewProps) {
                 >
                   <Text variant="muted" size="sm">{props.rightFile.name} (Modified)</Text>
                 </div>
-                <CodeEditor file={props.rightFile} />
+                <Suspense fallback={<div style={{ flex: "1" }}>Loading...</div>}>
+                    <CodeEditorLazy file={props.rightFile} />
+                  </Suspense>
               </div>
             )}
           />

@@ -85,6 +85,9 @@ export function createEditorInstance(props: {
   let currentFileId: string | null = null;
   let currentFilePath: string | null = null;
   let editorInitialized = false;
+  let monacoLoadAttempts = 0;
+  const MAX_MONACO_LOAD_ATTEMPTS = 2;
+  const MONACO_LOAD_TIMEOUT_MS = 15000;
 
   const [isLoading, setIsLoading] = createSignal(true);
   const [currentEditor, setCurrentEditor] =
@@ -111,7 +114,16 @@ export function createEditorInstance(props: {
 
     if (!monacoManager.isLoaded()) {
       try {
-        const monaco = await monacoManager.ensureLoaded();
+        monacoLoadAttempts++;
+        // Add timeout to prevent permanent loading spinner
+        const loadPromise = monacoManager.ensureLoaded();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Monaco loading timed out")),
+            MONACO_LOAD_TIMEOUT_MS,
+          ),
+        );
+        const monaco = await Promise.race([loadPromise, timeoutPromise]);
         monacoInstance = monaco;
         setCurrentMonaco(monaco);
 
@@ -145,6 +157,12 @@ export function createEditorInstance(props: {
     if (!containerRef || isLoading()) return;
 
     if (!monacoManager.isLoaded() && file) {
+      // Prevent infinite retry loops if Monaco repeatedly fails to load
+      if (monacoLoadAttempts >= MAX_MONACO_LOAD_ATTEMPTS) {
+        console.error("[CodeEditor] Monaco failed to load after max attempts, giving up");
+        return;
+      }
+      monacoLoadAttempts++;
       setIsLoading(true);
       monacoManager
         .ensureLoaded()
