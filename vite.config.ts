@@ -179,6 +179,9 @@ export default defineConfig(async (): Promise<UserConfig> => ({
       "@tauri-apps/plugin-os",
       "marked",
       "diff",
+      // Monaco must be pre-bundled; without this, Vite serves 500+ individual
+      // ESM files on first dynamic import, causing the editor to hang indefinitely.
+      "monaco-editor",
     ],
     esbuildOptions: {
       target: "es2021",
