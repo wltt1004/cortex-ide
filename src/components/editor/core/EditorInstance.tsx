@@ -135,6 +135,9 @@ export function createEditorInstance(props: {
         }
       } catch (error) {
         console.error("Failed to load Monaco editor:", error);
+        // Reset the MonacoManager state so retries start fresh instead of
+        // returning the same dead promise that timed out.
+        monacoManager.resetLoadState();
         setIsLoading(false);
         return;
       }
@@ -165,8 +168,16 @@ export function createEditorInstance(props: {
       }
       monacoLoadAttempts++;
       setIsLoading(true);
-      monacoManager
-        .ensureLoaded()
+      // Use timeout on retry too — without this, a dead promise from a
+      // previous timed-out attempt would hang forever.
+      const retryLoad = monacoManager.ensureLoaded();
+      const retryTimeout = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Monaco retry timed out")),
+          MONACO_LOAD_TIMEOUT_MS,
+        ),
+      );
+      Promise.race([retryLoad, retryTimeout])
         .then((monaco) => {
           monacoInstance = monaco;
           setCurrentMonaco(monaco);
@@ -174,6 +185,7 @@ export function createEditorInstance(props: {
         })
         .catch((err) => {
           console.error("Failed to load Monaco editor:", err);
+          monacoManager.resetLoadState();
           setIsLoading(false);
         });
       return;

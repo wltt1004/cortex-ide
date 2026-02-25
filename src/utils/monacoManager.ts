@@ -188,6 +188,18 @@ class MonacoManager {
   }
 
   /**
+   * Reset load state so a fresh load attempt can be made.
+   * Called when a previous load timed out or errored, leaving the manager
+   * stuck in "loading" state with a dead promise that will never resolve.
+   */
+  resetLoadState(): void {
+    if (this.loadState !== "loaded") {
+      this.loadState = "idle";
+      this.loadPromise = null;
+    }
+  }
+
+  /**
    * Get the Monaco instance (throws if not loaded)
    */
   getMonaco(): typeof Monaco {
