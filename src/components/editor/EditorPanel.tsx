@@ -93,7 +93,7 @@ export function EditorPanel() {
           visibility: showEditor() ? "visible" : "hidden",
           position: showEditor() ? "relative" : "absolute",
           width: "100%",
-          height: showEditor() ? "auto" : "0",
+          height: showEditor() ? "100%" : "0",
           "pointer-events": showEditor() ? "auto" : "none",
         }}
       >

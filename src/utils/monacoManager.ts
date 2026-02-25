@@ -249,52 +249,49 @@ class MonacoManager {
     // so that Vite can resolve and bundle them correctly.
     // Without this, Monaco fails to create web workers for tokenization
     // and the editor may hang or never fully initialize.
+    //
+    // WebKitGTK (used by Tauri on Linux) may not support module workers
+    // (`{ type: "module" }`), so we try module first and fall back to classic.
+    const workerUrls: Record<string, URL> = {
+      json: new URL("monaco-editor/esm/vs/language/json/json.worker.js", import.meta.url),
+      css: new URL("monaco-editor/esm/vs/language/css/css.worker.js", import.meta.url),
+      html: new URL("monaco-editor/esm/vs/language/html/html.worker.js", import.meta.url),
+      typescript: new URL("monaco-editor/esm/vs/language/typescript/ts.worker.js", import.meta.url),
+      editor: new URL("monaco-editor/esm/vs/editor/editor.worker.js", import.meta.url),
+    };
+
+    function createWorkerWithFallback(url: URL): Worker {
+      try {
+        // Try module worker first (works in Chromium, Firefox)
+        return new Worker(url, { type: "module" });
+      } catch {
+        // Fallback for WebKitGTK/Safari where module workers may not be supported.
+        // Use a classic worker that imports the module via importScripts or blob.
+        console.warn("[Monaco] Module workers not supported, falling back to classic worker");
+        const blob = new Blob(
+          [`importScripts(${JSON.stringify(url.toString())});`],
+          { type: "application/javascript" },
+        );
+        return new Worker(URL.createObjectURL(blob));
+      }
+    }
+
     self.MonacoEnvironment = {
       getWorker(_workerId: string, label: string): Worker {
         if (label === "json") {
-          return new Worker(
-            new URL(
-              "monaco-editor/esm/vs/language/json/json.worker.js",
-              import.meta.url,
-            ),
-            { type: "module" },
-          );
+          return createWorkerWithFallback(workerUrls.json);
         }
         if (label === "css" || label === "scss" || label === "less") {
-          return new Worker(
-            new URL(
-              "monaco-editor/esm/vs/language/css/css.worker.js",
-              import.meta.url,
-            ),
-            { type: "module" },
-          );
+          return createWorkerWithFallback(workerUrls.css);
         }
         if (label === "html" || label === "handlebars" || label === "razor") {
-          return new Worker(
-            new URL(
-              "monaco-editor/esm/vs/language/html/html.worker.js",
-              import.meta.url,
-            ),
-            { type: "module" },
-          );
+          return createWorkerWithFallback(workerUrls.html);
         }
         if (label === "typescript" || label === "javascript") {
-          return new Worker(
-            new URL(
-              "monaco-editor/esm/vs/language/typescript/ts.worker.js",
-              import.meta.url,
-            ),
-            { type: "module" },
-          );
+          return createWorkerWithFallback(workerUrls.typescript);
         }
         // Default editor worker (handles tokenization, diff, etc.)
-        return new Worker(
-          new URL(
-            "monaco-editor/esm/vs/editor/editor.worker.js",
-            import.meta.url,
-          ),
-          { type: "module" },
-        );
+        return createWorkerWithFallback(workerUrls.editor);
       },
     };
 
