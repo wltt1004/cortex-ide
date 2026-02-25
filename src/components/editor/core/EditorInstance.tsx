@@ -56,7 +56,7 @@ export function getMonacoInstance(): typeof Monaco | null {
 export interface CreateEditorInstanceResult {
   editor: Accessor<Monaco.editor.IStandaloneCodeEditor | null>;
   monaco: Accessor<typeof Monaco | null>;
-  containerRef: HTMLDivElement | undefined;
+  containerRef: Accessor<HTMLDivElement | undefined>;
   setContainerRef: (el: HTMLDivElement) => void;
   isLoading: Accessor<boolean>;
   activeFile: Accessor<OpenFile | undefined>;
@@ -79,7 +79,7 @@ export function createEditorInstance(props: {
     getEffectiveEditorSettings,
   } = useSettings();
 
-  let containerRef: HTMLDivElement | undefined;
+  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | undefined>(undefined);
   let editorRef: Monaco.editor.IStandaloneCodeEditor | null = null;
   let isDisposed = false;
   let currentFileId: string | null = null;
@@ -154,7 +154,8 @@ export function createEditorInstance(props: {
     const fileId = file?.id || null;
     const filePath = file?.path || null;
 
-    if (!containerRef || isLoading()) return;
+    const container = containerRef();
+    if (!container || isLoading()) return;
 
     if (!monacoManager.isLoaded() && file) {
       // Prevent infinite retry loops if Monaco repeatedly fails to load
@@ -403,7 +404,7 @@ export function createEditorInstance(props: {
         );
       } else {
         editorRef = monacoInstance!.editor.create(
-          containerRef,
+          container,
           editorOptions,
         );
         editorInitialized = true;
@@ -529,8 +530,9 @@ export function createEditorInstance(props: {
       setCurrentEditor(null);
     }
 
-    if (containerRef) {
-      containerRef.innerHTML = "";
+    const el = containerRef();
+    if (el) {
+      el.innerHTML = "";
     }
   });
 
@@ -539,7 +541,7 @@ export function createEditorInstance(props: {
     monaco: currentMonaco,
     containerRef,
     setContainerRef: (el: HTMLDivElement) => {
-      containerRef = el;
+      setContainerRef(el);
     },
     isLoading,
     activeFile,
