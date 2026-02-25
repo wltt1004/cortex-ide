@@ -14,9 +14,11 @@ export function createFileOperations(
   const openFile = async (path: string, groupId?: string) => {
     const perfStart = performance.now();
     const targetGroupId = groupId || state.activeGroupId;
-    
+    console.warn("[openFile] Called for path:", path, "| targetGroupId:", targetGroupId);
+
     const existing = state.openFiles.find((f) => f.path === path);
     if (existing) {
+      console.warn("[openFile] File already open, switching to existing:", existing.id);
       batch(() => {
         setState("activeFileId", existing.id);
         setState("activeGroupId", targetGroupId);
@@ -36,10 +38,12 @@ export function createFileOperations(
     }
 
     setState("isOpening", true);
+    console.warn("[openFile] isOpening set to TRUE");
     try {
       const readStart = performance.now();
+      console.warn("[openFile] Calling fs_read_file IPC...");
       const content = await invoke<string>("fs_read_file", { path });
-      console.debug(`[EditorContext] fs_read_file: ${(performance.now() - readStart).toFixed(1)}ms (${(content.length / 1024).toFixed(1)}KB)`);
+      console.warn(`[openFile] fs_read_file completed: ${(performance.now() - readStart).toFixed(1)}ms (${(content.length / 1024).toFixed(1)}KB)`);
       
       const name = path.split(/[/\\]/).pop() || path;
       const id = `file-${generateId()}`;
@@ -86,6 +90,7 @@ export function createFileOperations(
       );
     } finally {
       setState("isOpening", false);
+      console.warn("[openFile] isOpening set to FALSE (finally block)");
     }
   };
 

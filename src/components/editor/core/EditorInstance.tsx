@@ -107,7 +107,9 @@ export function createEditorInstance(props: {
 
   onMount(async () => {
     const file = activeFile();
+    console.warn("[EditorInstance] onMount fired | file:", file?.name, "| monacoLoaded:", monacoManager.isLoaded(), "| loadState:", monacoManager.getLoadState());
     if (!file) {
+      console.warn("[EditorInstance] No file, setting isLoading=false");
       setIsLoading(false);
       return;
     }
@@ -115,6 +117,7 @@ export function createEditorInstance(props: {
     if (!monacoManager.isLoaded()) {
       try {
         monacoLoadAttempts++;
+        console.warn("[EditorInstance] Starting Monaco load, attempt:", monacoLoadAttempts);
         // Add timeout to prevent permanent loading spinner
         const loadPromise = monacoManager.ensureLoaded();
         const timeoutPromise = new Promise<never>((_, reject) =>
@@ -124,6 +127,7 @@ export function createEditorInstance(props: {
           ),
         );
         const monaco = await Promise.race([loadPromise, timeoutPromise]);
+        console.warn("[EditorInstance] Monaco loaded successfully");
         monacoInstance = monaco;
         setCurrentMonaco(monaco);
 
@@ -134,7 +138,7 @@ export function createEditorInstance(props: {
           });
         }
       } catch (error) {
-        console.error("Failed to load Monaco editor:", error);
+        console.error("[EditorInstance] Failed to load Monaco:", error);
         // Reset the MonacoManager state so retries start fresh instead of
         // returning the same dead promise that timed out.
         monacoManager.resetLoadState();
@@ -142,10 +146,12 @@ export function createEditorInstance(props: {
         return;
       }
     } else {
+      console.warn("[EditorInstance] Monaco already loaded");
       monacoInstance = monacoManager.getMonaco();
       setCurrentMonaco(monacoInstance);
     }
 
+    console.warn("[EditorInstance] Setting isLoading=false");
     setIsLoading(false);
   });
 
@@ -158,6 +164,7 @@ export function createEditorInstance(props: {
     const filePath = file?.path || null;
 
     const container = containerRef();
+    console.warn("[EditorInstance] createEffect | file:", file?.name, "| container:", !!container, "| isLoading:", isLoading(), "| monacoLoaded:", monacoManager.isLoaded());
     if (!container || isLoading()) return;
 
     if (!monacoManager.isLoaded() && file) {

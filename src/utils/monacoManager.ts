@@ -222,31 +222,36 @@ class MonacoManager {
   async ensureLoaded(): Promise<typeof Monaco> {
     // Already loaded
     if (this.loadState === "loaded" && this.monaco) {
+      console.warn("[MonacoManager] ensureLoaded: already loaded");
       return this.monaco;
     }
 
     // Loading in progress
     if (this.loadState === "loading" && this.loadPromise) {
+      console.warn("[MonacoManager] ensureLoaded: load already in progress, waiting...");
       return this.loadPromise;
     }
 
     // Start loading
+    console.warn("[MonacoManager] ensureLoaded: starting fresh load, current state:", this.loadState);
     this.loadState = "loading";
     this.config.onLoadStart();
 
     this.loadPromise = this.loadMonaco();
-    
+
     try {
       this.monaco = await this.loadPromise;
       this.loadState = "loaded";
       this.config.onLoadComplete();
-      
+      console.warn("[MonacoManager] ensureLoaded: Monaco loaded successfully");
+
       // Register theme and providers
       this.registerTheme();
-      
+
       return this.monaco;
     } catch (error) {
       this.loadState = "error";
+      console.error("[MonacoManager] ensureLoaded: load failed:", error);
       this.config.onLoadError(error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
@@ -307,7 +312,9 @@ class MonacoManager {
       },
     };
 
+    console.warn("[MonacoManager] loadMonaco: starting import('monaco-editor')...");
     const monaco = await import("monaco-editor");
+    console.warn("[MonacoManager] loadMonaco: import('monaco-editor') resolved successfully");
     return monaco;
   }
 

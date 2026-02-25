@@ -1,6 +1,7 @@
-import { createContext, useContext, ParentProps, createMemo, batch } from "solid-js";
+import { createContext, useContext, ParentProps, createMemo, batch, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { loadGridState } from "../../utils/gridSerializer";
+import { MonacoManager } from "../../utils/monacoManager";
 import type { OpenFile, EditorGroup, EditorSplit, SplitDirection } from "../../types";
 import type {
   EditorState,
@@ -391,6 +392,18 @@ export function EditorProvider(props: ParentProps) {
     setActiveFile: fileOps.setActiveFile,
     openFile: fileOps.openFile,
     saveFile: fileOps.saveFile,
+  });
+
+  // Preload Monaco at startup so it's ready when the first file is opened.
+  // This runs after the EditorProvider mounts (Tier 1), giving Monaco time
+  // to load in the background while the user navigates the file tree.
+  onMount(() => {
+    console.warn("[EditorProvider] Preloading Monaco editor in background...");
+    MonacoManager.getInstance().ensureLoaded().then(() => {
+      console.warn("[EditorProvider] Monaco preloaded successfully");
+    }).catch((err) => {
+      console.warn("[EditorProvider] Monaco preload failed (will retry on file open):", err);
+    });
   });
 
   return (

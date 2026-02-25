@@ -1,4 +1,4 @@
-import { Show, createMemo, type JSX } from "solid-js";
+import { Show, createMemo, createEffect, type JSX } from "solid-js";
 import { MultiBuffer } from "./MultiBuffer";
 import { useEditor } from "@/context/EditorContext";
 import { EditorSkeleton } from "./EditorSkeleton";
@@ -22,14 +22,19 @@ import { tokens } from "@/design-system/tokens";
  */
 export function EditorPanel() {
   const { state } = useEditor();
-  
+
   const hasOpenFiles = createMemo(() => state.openFiles.length > 0);
   const showEditor = createMemo(() => !state.isOpening && hasOpenFiles());
 
+  // Diagnostic logging to trace editor loading flow
+  createEffect(() => {
+    console.warn("[EditorPanel] isOpening:", state.isOpening, "| hasOpenFiles:", hasOpenFiles(), "| showEditor:", showEditor(), "| openFiles count:", state.openFiles.length);
+  });
+
   return (
-    <div 
+    <div
       class="editor-panel flex-1 flex flex-col min-h-0 overflow-hidden"
-      style={{ 
+      style={{
         position: "relative",
         background: "var(--vscode-editor-background, #141415)",
       }}

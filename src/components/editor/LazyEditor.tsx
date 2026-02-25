@@ -27,10 +27,13 @@ const mountedModels = new Set<string>();
 export function LazyEditor(props: LazyEditorProps) {
   const [wasEverActive, setWasEverActive] = createSignal(props.isActive);
 
+  console.warn("[LazyEditor] Created for file:", props.file.name, "| isActive:", props.isActive, "| wasEverActive:", wasEverActive());
+
   createEffect(() => {
     if (props.isActive) {
       setWasEverActive(true);
       mountedModels.add(props.file.id);
+      console.warn("[LazyEditor] File became active:", props.file.name, "| wasEverActive set to true");
     }
   });
 
