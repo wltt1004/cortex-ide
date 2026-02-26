@@ -532,12 +532,18 @@ fn run_phase_b(app_handle: AppHandle, remote_manager: Arc<RemoteManager>) {
             async {
                 #[cfg(debug_assertions)]
                 {
-                    let t = std::time::Instant::now();
-                    let mcp_state = app_handle.state::<crate::mcp::McpState<tauri::Wry>>();
-                    if let Err(e) = mcp_state.start(&app_handle) {
-                        warn!("Failed to start MCP server: {}", e);
+                    // Skip MCP socket server when CORTEX_SKIP_MCP_BRIDGE is set,
+                    // consistent with skipping the MCP bridge plugin in lib.rs.
+                    if std::env::var("CORTEX_SKIP_MCP_BRIDGE").is_ok() {
+                        info!("Skipping MCP socket server (CORTEX_SKIP_MCP_BRIDGE is set)");
                     } else {
-                        info!("MCP socket server started in {:?}", t.elapsed());
+                        let t = std::time::Instant::now();
+                        let mcp_state = app_handle.state::<crate::mcp::McpState<tauri::Wry>>();
+                        if let Err(e) = mcp_state.start(&app_handle) {
+                            warn!("Failed to start MCP server: {}", e);
+                        } else {
+                            info!("MCP socket server started in {:?}", t.elapsed());
+                        }
                     }
                 }
             }

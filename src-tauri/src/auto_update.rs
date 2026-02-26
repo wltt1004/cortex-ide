@@ -450,6 +450,24 @@ pub fn set_skipped_version(_version: Option<String>) -> Result<(), String> {
 /// Initialize auto-update and optionally check on startup
 pub fn init_auto_update<R: Runtime>(app: &AppHandle<R>, check_on_startup: bool) {
     if check_on_startup {
+        // Respect the updater plugin config — skip the startup check when
+        // `active` is false or the pubkey is empty.  Calling updater.check()
+        // in that state can trigger a TLS/SChannel crash (STATUS_ACCESS_VIOLATION)
+        // on certain Windows environments (containers, headless, missing cert store).
+        let updater_active = app
+            .config()
+            .plugins
+            .0
+            .get("updater")
+            .and_then(|v| v.get("active"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        if !updater_active {
+            info!("Auto-updater is disabled in config, skipping startup check");
+            return;
+        }
+
         let app_clone = app.clone();
         let _update_handle = tauri::async_runtime::spawn(async move {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
