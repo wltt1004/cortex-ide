@@ -62,6 +62,7 @@ pub fn detect_system_locale() -> String {
 
 /// Detect locale on Windows using the Win32 GetUserDefaultLocaleName API.
 #[cfg(target_os = "windows")]
+#[allow(unsafe_code)]
 fn detect_windows_locale() -> Option<String> {
     use windows_sys::Win32::Globalization::GetUserDefaultLocaleName;
 
