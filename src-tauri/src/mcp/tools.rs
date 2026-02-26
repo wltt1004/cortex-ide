@@ -222,12 +222,29 @@ async fn capture_window_screenshot_windows<R: Runtime>(
     use win_screenshot::prelude::*;
 
     let title = window.title().unwrap_or_default();
+    if title.is_empty() {
+        return Err("Window title is empty, cannot locate window handle".to_string());
+    }
+
     let hwnd = find_window(&title).map_err(|_| "Could not find window handle")?;
 
     let buf = capture_window(hwnd).map_err(|e| format!("Screenshot failed: {}", e))?;
 
+    // Validate capture buffer before constructing the image to prevent access
+    // violations from invalid/null pixel data returned by the Windows API.
+    if buf.width == 0 || buf.height == 0 {
+        return Err("Screenshot capture returned zero-size buffer".to_string());
+    }
+    let expected_len = (buf.width as usize) * (buf.height as usize) * 3;
+    if buf.pixels.len() != expected_len {
+        return Err(format!(
+            "Screenshot buffer size mismatch: expected {} bytes ({}x{}x3), got {}",
+            expected_len, buf.width, buf.height, buf.pixels.len()
+        ));
+    }
+
     let img = image::RgbImage::from_raw(buf.width, buf.height, buf.pixels)
-        .ok_or("Failed to create image")?;
+        .ok_or("Failed to create image from screenshot buffer")?;
 
     // Convert to DynamicImage for processing
     let mut dynamic_img = image::DynamicImage::ImageRgb8(img);

@@ -126,13 +126,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_fs::init());
 
-    #[cfg(debug_assertions)]
-    let builder = builder.plugin(
-        tauri_plugin_mcp_bridge::Builder::new()
-            .bind_address("127.0.0.1")
-            .build(),
-    );
-
+    // Desktop-only plugins: single instance guard, auto-updater, deep links.
+    // Registered before MCP bridge so they initialize first — the MCP bridge
+    // injects JavaScript into the WebView during init, so placing it last
+    // avoids interfering with earlier plugin setup on Windows.
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -142,6 +139,23 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init());
+
+    // MCP Bridge plugin — debug builds only.
+    // On Windows, the plugin's WebView2 JavaScript injection during init can
+    // trigger a STATUS_ACCESS_VIOLATION in certain environments (containers,
+    // headless, missing WebView2 runtime). Set CORTEX_SKIP_MCP_BRIDGE=1 to
+    // disable the plugin if you hit this crash.
+    #[cfg(debug_assertions)]
+    let builder = if std::env::var("CORTEX_SKIP_MCP_BRIDGE").is_ok() {
+        info!("Skipping MCP Bridge plugin (CORTEX_SKIP_MCP_BRIDGE is set)");
+        builder
+    } else {
+        builder.plugin(
+            tauri_plugin_mcp_bridge::Builder::new()
+                .bind_address("127.0.0.1")
+                .build(),
+        )
+    };
 
     let remote_manager = Arc::new(remote::RemoteManager::new());
 
